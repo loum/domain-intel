@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<aws:SitesLinkingInResponse xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+  <aws:Response xmlns:aws="http://awis.amazonaws.com/doc/2005-07-11">
+    <aws:OperationRequest>
+      <aws:RequestId>57d51e23-877a-a237-98bb-78fa77d82cbc</aws:RequestId>
+    </aws:OperationRequest>
+    <aws:SitesLinkingInResult>
+      <aws:Alexa>
+        <aws:SitesLinkingIn>
+          <aws:Site>
+            <aws:Title>votrian.blogspot.com</aws:Title>
+            <aws:Url>votrian.blogspot.com:80/2008/06/eve-areas-of-interest-aoi.html</aws:Url>
+          </aws:Site>
+        </aws:SitesLinkingIn>
+      </aws:Alexa>
+    </aws:SitesLinkingInResult>
+    <aws:ResponseStatus xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+      <aws:StatusCode>Success</aws:StatusCode>
+    </aws:ResponseStatus>
+  </aws:Response>
+</aws:SitesLinkingInResponse>

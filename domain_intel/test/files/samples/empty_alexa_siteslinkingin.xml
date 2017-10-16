@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<aws:SitesLinkingInResponse xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+  <aws:Response xmlns:aws="http://awis.amazonaws.com/doc/2005-07-11">
+    <aws:OperationRequest>
+      <aws:RequestId>41548d4b-67ba-0a28-9a4f-10ad1ef02df2</aws:RequestId>
+    </aws:OperationRequest>
+    <aws:SitesLinkingInResult>
+	  <aws:Alexa>
+
+        <aws:SitesLinkingIn/>
+      </aws:Alexa>
+    </aws:SitesLinkingInResult>
+	<aws:ResponseStatus xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+      <aws:StatusCode>Success</aws:StatusCode>
+    </aws:ResponseStatus>
+  </aws:Response>
+</aws:SitesLinkingInResponse>

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<aws:TrafficHistoryResponse xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+  <aws:Response>
+    <aws:ResponseStatus>
+      <aws:StatusCode>AlexaError</aws:StatusCode>
+      <aws:StatusMessage>Request could not be execute due to an Alexa error</aws:StatusMessage>
+    </aws:ResponseStatus>
+  </aws:Response>
+</aws:TrafficHistoryResponse>

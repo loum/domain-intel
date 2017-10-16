@@ -1,0 +1,32 @@
+# If working on Mac,
+# follow https://docs.docker.com/docker-for-mac/networking/ -- namely
+# I WANT TO CONNECT FROM A CONTAINER TO A SERVICE ON THE HOST
+#
+# If the  Mac has a changing IP address (or none if you have no network
+# access). Our current recommendation is to attach an unused IP to the
+# lo0 interface on the Mac; for example:
+#   sudo ifconfig lo0 alias 10.200.10.1/32
+# and make sure that your service is listening on this address or
+# 0.0.0.0 (ie not 127.0.0.1). Then containers can connect to this address.
+version: '2'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2180:2181"
+  kafka:
+    build: .
+    ports:
+      - "9091:9092"
+    env_file: test.env
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: 10.200.10.1
+      KAFKA_ZOOKEEPER_CONNECT: 10.200.10.1:2180
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+  arangodb:
+    image: arangodb/arangodb
+    ports:
+      - "8528:8529"
+    environment:
+      ARANGO_NO_AUTH: 1

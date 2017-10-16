@@ -1,0 +1,26 @@
+{
+    "geodns": {
+        "compass": {
+            "username": "",
+            "password": ""
+        }
+    },
+    "kafka": {
+        "topics": "gtr-domains:2:1,alexa-results:2:1,alexa-flattened:2:1,dns-domains:2:1,dns-raw:2:1,dns-parsed:2:1,dns-geodns-parsed:2:1,domain-labels:2:1,domain-traversals:2:1,wide-column-csv:2:1,sli-domains:2:1,alexa-sli-results:2:1,traffic-domains:2:1,alexa-traffic-results:2:1,alexa-traffic-flattened:2:1,analyst-qas:1:1",
+        "port": 9091,
+        "host": "localhost",
+        "bootstrap_servers": [
+            "localhost:9091"
+        ],
+		"timeout": 10000
+    },
+    "arango_port": 8528,
+    "arango_host": "localhost",
+    "arango_username": "root",
+    "arango_password": "",
+    "threads": 2,
+    "awis": {
+        "access_key_id": "",
+        "secret_access_key": ""
+    }
+}

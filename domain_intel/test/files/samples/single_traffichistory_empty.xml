@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<aws:TrafficHistoryResponse xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+  <aws:Response xmlns:aws="http://awis.amazonaws.com/doc/2005-07-11">
+    <aws:OperationRequest>
+      <aws:RequestId>5bee232c-84ff-c672-69e3-597ecd90fd04</aws:RequestId>
+    </aws:OperationRequest>
+    <aws:TrafficHistoryResult>
+      <aws:Alexa>
+
+        <aws:TrafficHistory>
+          <aws:Range>30</aws:Range>
+          <aws:Site>vnamct.net</aws:Site>
+          <aws:Start>2017-07-01</aws:Start>
+          <aws:HistoricalData/>
+        </aws:TrafficHistory>
+      </aws:Alexa>
+    </aws:TrafficHistoryResult>
+    <aws:ResponseStatus xmlns:aws="http://alexa.amazonaws.com/doc/2005-10-05/">
+      <aws:StatusCode>Success</aws:StatusCode>
+    </aws:ResponseStatus>
+  </aws:Response>
+</aws:TrafficHistoryResponse>

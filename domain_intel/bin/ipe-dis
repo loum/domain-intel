@@ -1,0 +1,580 @@
+#!/usr/bin/env python
+
+import argparse
+import gbq
+
+import domain_intel.analyst
+import domain_intel.awis.actions
+import domain_intel.utils
+import domain_intel.geodns
+
+DESCRIPTION = """Domain Intel Services utility"""
+
+
+def main():
+    """Script entry point.
+
+    """
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+
+    # Global optionals.
+    dry_help = "Only report, don't run"
+    parser.add_argument('-D',
+                        '--dry',
+                        action='store_true',
+                        dest='dry',
+                        help=dry_help)
+
+    # Add sub-command support.
+    subparsers = parser.add_subparsers(title='subcommands',
+                                       description='supported subcommands',
+                                       dest='subcommands')
+    subparsers.required = True
+
+    # "kafka" sub-command
+    kafka_help = 'Manage Kafka'
+    kafka_subparser = subparsers.add_parser('kafka', help=kafka_help)
+
+    kafka_dump_help = 'Dump messages from a Kafka topic'
+    kafka_subparser.add_argument('-d',
+                                 '--dump',
+                                 nargs=1,
+                                 help=kafka_dump_help)
+
+    kafka_count_help = 'Kafka count threshold'
+    kafka_subparser.add_argument('-c',
+                                 '--count',
+                                 const=-1,
+                                 action='store',
+                                 type=int,
+                                 nargs='?',
+                                 help=kafka_count_help)
+
+    kafka_group_help = 'Group ID to use when reading from Kafka'
+    kafka_subparser.add_argument('-g',
+                                 '--group',
+                                 default='default',
+                                 help=kafka_group_help)
+
+    kafka_subparser.set_defaults(func=kafka)
+
+    # 'domain' subcommand.
+    domain_help = 'Manage GTR domains'
+    domain_subparser = subparsers.add_parser('domain', help=domain_help)
+
+    domain_add_help = 'Add domains to Kafka'
+    domain_subparser.add_argument('-a',
+                                  '--add',
+                                  nargs='?',
+                                  type=argparse.FileType('r'),
+                                  help=domain_add_help)
+
+    domain_slurp_help = 'Slurp domain information from Alexa AWIS'
+    domain_subparser.add_argument('-s',
+                                  '--slurp',
+                                  action='store_true',
+                                  help=domain_slurp_help)
+
+    domain_reload_help = 'Reload raw XML Alexa domains into Kafka'
+    domain_subparser.add_argument('-r',
+                                  '--reload',
+                                  nargs='?',
+                                  type=argparse.FileType('r'),
+                                  help=domain_reload_help)
+
+    domain_flatten_help = 'Flatten local Alexa XML domains into JSON'
+    domain_subparser.add_argument('-f',
+                                  '--flatten',
+                                  action='store_true',
+                                  help=domain_flatten_help)
+
+    domain_export_help = 'Export local Alexa XML domains into CSV'
+    domain_subparser.add_argument('-e',
+                                  '--export',
+                                  action='store_true',
+                                  help=domain_export_help)
+
+    domain_persist_help = 'Persist flattened Alexa data'
+    domain_subparser.add_argument('-p',
+                                  '--persist',
+                                  action='store_true',
+                                  help=domain_persist_help)
+
+    domain_count_help = 'Domain count threshold'
+    domain_subparser.add_argument('-c',
+                                  '--count',
+                                  const=-1,
+                                  action='store',
+                                  type=int,
+                                  nargs='?',
+                                  help=domain_count_help)
+
+    group_read_help = 'Group ID to use when reading from Kafka'
+    domain_subparser.add_argument('-g',
+                                  '--group',
+                                  default='default',
+                                  help=group_read_help)
+
+    domain_label_help = 'Dump the domain label set'
+    domain_subparser.add_argument('-l',
+                                  '--label',
+                                  action='store_true',
+                                  help=domain_label_help)
+
+    traverse_help = 'Traverse domain graph relationships'
+    domain_subparser.add_argument('-t',
+                                  '--traverse',
+                                  nargs='?',
+                                  const='all',
+                                  help=traverse_help)
+
+    wide_column_help = 'Dump wide-column CSV'
+    domain_subparser.add_argument('-w',
+                                  '--wide-column',
+                                  action='store_true',
+                                  help=wide_column_help)
+
+    domain_subparser.set_defaults(func=domains)
+
+    # 'sites' subcommand.
+    sites_help = 'Sites Linking into domains'
+    sites_subparser = subparsers.add_parser('sites', help=sites_help)
+
+    sites_count_help = 'SitesLinking count threshold'
+    sites_subparser.add_argument('-c',
+                                 '--count',
+                                 const=-1,
+                                 action='store',
+                                 type=int,
+                                 nargs='?',
+                                 help=sites_count_help)
+
+    sites_group_read_help = 'Group ID to use when reading from Kafka'
+    sites_subparser.add_argument('-g',
+                                 '--group',
+                                 default='default',
+                                 help=sites_group_read_help)
+
+    sites_add_help = 'Add domains to Kafka'
+    sites_subparser.add_argument('-a',
+                                 '--add',
+                                 nargs='?',
+                                 type=argparse.FileType('r'),
+                                 help=sites_add_help)
+
+    sites_slurp_help = 'Slurp sites linking in from Alexa AWIS'
+    sites_subparser.add_argument('-s',
+                                 '--slurp',
+                                 nargs='?',
+                                 const='all',
+                                 help=sites_slurp_help)
+
+    sites_persist_help = 'Persist SitesLinkingIn Alexa data'
+    sites_subparser.add_argument('-p',
+                                 '--persist',
+                                 action='store_true',
+                                 help=sites_persist_help)
+
+    sites_subparser.set_defaults(func=sites)
+
+    # 'traffic' subcommand.
+    traffic_help = 'Manage Alexa TrafficHistory'
+    traffic_subparser = subparsers.add_parser('traffic', help=traffic_help)
+
+    traffic_count_help = 'TrafficHistory count threshold'
+    traffic_subparser.add_argument('-c',
+                                   '--count',
+                                   const=-1,
+                                   action='store',
+                                   type=int,
+                                   nargs='?',
+                                   help=traffic_count_help)
+
+    traffic_group_help = 'Group ID to use when reading from Kafka'
+    traffic_subparser.add_argument('-g',
+                                   '--group',
+                                   default='default',
+                                   help=traffic_group_help)
+
+    traffic_add_help = 'Add TrafficHistory domains to Kafka'
+    traffic_subparser.add_argument('-a',
+                                   '--add',
+                                   nargs='?',
+                                   type=argparse.FileType('r'),
+                                   help=traffic_add_help)
+
+    traffic_slurp_help = 'Slurp TrafficHistory information from Alexa AWIS'
+    traffic_subparser.add_argument('-s',
+                                   '--slurp',
+                                   action='store_true',
+                                   help=traffic_slurp_help)
+
+    traffic_reload_help = 'Reload raw TrafficHistory Alexa XML into Kafka'
+    traffic_subparser.add_argument('-r',
+                                   '--reload',
+                                   nargs='?',
+                                   type=argparse.FileType('r'),
+                                   help=traffic_reload_help)
+
+    traffic_flatten_help = 'Flatten Alexa XML TrafficHistory into JSON'
+    traffic_subparser.add_argument('-f',
+                                   '--flatten',
+                                   action='store_true',
+                                   help=traffic_flatten_help)
+
+    traffic_persist_help = 'Persist flattened Alexa TrafficHistory data'
+    traffic_subparser.add_argument('-p',
+                                   '--persist',
+                                   action='store_true',
+                                   help=traffic_persist_help)
+
+    traffic_subparser.set_defaults(func=traffic)
+
+    # 'analyst' subcommand.
+    analyst_help = 'Manage Analyst data'
+    analyst_subparser = subparsers.add_parser('analyst', help=analyst_help)
+
+    analyst_count_help = 'Analyst count threshold'
+    analyst_subparser.add_argument('-c',
+                                   '--count',
+                                   const=-1,
+                                   action='store',
+                                   type=int,
+                                   nargs='?',
+                                   help=analyst_count_help)
+
+    analyst_group_help = 'Group ID to use when reading from Kafka'
+    analyst_subparser.add_argument('-g',
+                                   '--group',
+                                   default='default',
+                                   help=analyst_group_help)
+
+    analyst_add_help = 'Add Analyst QAs to Kafka from file'
+    analyst_subparser.add_argument('-a',
+                                   '--add',
+                                   nargs='?',
+                                   type=argparse.FileType('r'),
+                                   help=analyst_add_help)
+
+    analyst_persist_help = 'Persist Analyst QAs data'
+    analyst_subparser.add_argument('-p',
+                                   '--persist',
+                                   action='store_true',
+                                   help=analyst_persist_help)
+
+    analyst_subparser.set_defaults(func=analyst)
+
+    # 'gbq' subcommand.
+    gbq_help = 'Google BigQuery'
+    gbq_subparser = subparsers.add_parser('gbq', help=gbq_help)
+
+    dataset_help = 'GBQ dataset'
+    gbq_subparser.add_argument('-d',
+                               '--dataset',
+                               action='store',
+                               default='domain_intel',
+                               help=dataset_help)
+
+    table_help = 'GBQ dataset table'
+    gbq_subparser.add_argument('-t',
+                               '--table',
+                               action='store',
+                               nargs='?',
+                               help=table_help)
+
+    reset_help = 'Reset (truncate) the GBQ dataset table'
+    gbq_subparser.add_argument('-r', '--reset',
+                               action='store_true',
+                               help=reset_help)
+
+    csv_file_help = 'Source CSV file name'
+    gbq_subparser.add_argument('filename',
+                               action='store',
+                               help=csv_file_help)
+    gbq_subparser.set_defaults(func=google_big_query)
+
+    # 'geodns' subcommand.
+    geodns_subparser = subparsers.add_parser('geodns', help="Manage GeoDNS subsystem. Typical usage would be (add domains, slurp dns, flatten dns, slurp and flatten geodns .. ")
+
+    geodns_subparser.add_argument(
+        '-d',
+        '--dump',
+        nargs='?',
+        type=str,
+        help='Dump input/output of chosen stage out to this directory. Implies dry run mode',
+    )
+
+    geodns_subparser.add_argument(
+        '-a',
+        '--add',
+        nargs='?',
+        type=str,
+        help='Add domains for GeoDNS lookup to Kafka from file'
+    )
+
+    geodns_subparser.add_argument(
+        '-sd',
+        '--slurp_dns',
+        action='store_true',
+        help='Slurp dns information from CheckHostNet',
+    )
+
+    geodns_subparser.add_argument(
+        '-fd',
+        '--flatten_dns',
+        action='store_true',
+        help='Flatten raw dns payloads internal container type'
+    )
+
+    geodns_subparser.add_argument(
+        '-sfgd',
+        '--slurp_and_flatten_geodns',
+        action='store_true',
+        help='Slurp geog information for dns results, flatten into combined container, represents final stage of resolution for geodns.',
+    )
+
+    geodns_subparser.set_defaults(func=geodns)
+
+    args = parser.parse_args()
+
+    args.func(args)
+
+
+def kafka(args):
+    """'kafka' subcommand entry point.
+
+    """
+    count = args.count
+    if args.count == -1:
+        count = None
+
+    group_id = args.group
+    if args.dry or args.dump:
+        group_id = domain_intel.utils.id_generator()
+
+    kwargs = {'dry': args.dry}
+
+    awis = domain_intel.Awis()
+    if args.dump:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        kwargs['topic'] = args.dump[0]
+        awis.topic_dump(**kwargs)
+
+
+def geodns(args):
+    """geodns subcommand entry point"""
+
+    kwargs = {
+        "dry": args.dry,
+    }
+
+    # dump implies dry run
+    if kwargs["dump"] is not None and kwargs["dump"] != "":
+        kwargs["dry"] = True
+
+    if args.add:
+        domain_intel.geodns.stages.load_domains_from_file(
+            filename=args.add,
+            **kwargs
+        )
+
+    elif args.slurp_dns:
+        domain_intel.geodns.stages.slurp_domains_dns(
+            **kwargs
+        )
+
+    elif args.flatten_dns:
+        domain_intel.geodns.stages.flatten_dns_raw(
+            **kwargs
+        )
+
+    elif args.slurp_and_flatten_geodns:
+        domain_intel.geodns.stages.slurp_and_flatten_geodns(
+            **kwargs
+        )
+
+
+def domains(args):
+    """'domain' sub-command entry point.
+
+    """
+    count = args.count
+    if args.count == -1:
+        count = None
+
+    group_id = args.group
+    if args.dry:
+        group_id = domain_intel.utils.id_generator()
+
+    kwargs = {'dry': args.dry}
+
+    awis = domain_intel.awis.actions.UrlInfo()
+    if args.add:
+        kwargs['file_h'] = args.add
+        kwargs['max_add_count'] = count
+        kwargs['topic'] = 'gtr-domains'
+        awis.add_domains(**kwargs)
+    elif args.slurp:
+        kwargs['max_read_count'] = count
+        kwargs['slurp'] = True
+        awis.read_domains(**kwargs)
+    elif args.reload:
+        kwargs['max_read_count'] = count
+        kwargs['file_h'] = args.reload
+        kwargs['topic'] = 'alexa-results'
+        kwargs['end_token'] = 'UrlInfoResponse'
+        awis.parse_raw_alexa(**kwargs)
+    elif args.flatten:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.flatten_domains(**kwargs)
+    elif args.persist:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.persist(**kwargs)
+    elif args.export:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.alexa_csv_dump(**kwargs)
+    elif args.label:
+        kwargs['max_add_count'] = count
+        awis.add_domain_labels(**kwargs)
+    elif args.traverse:
+        if args.traverse == 'all':
+            kwargs['max_read_count'] = count
+            kwargs['group_id'] = group_id
+            awis.traverse_relationship(**kwargs)
+        else:
+            store = domain_intel.Store()
+            result = store.traverse_graph(args.traverse, as_json=True)
+            print(result)
+    elif args.wide_column:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.wide_column_dump(**kwargs)
+
+
+def sites(args):
+    """'sites' sub-command entry point.
+
+    """
+    count = args.count
+    if args.count == -1:
+        count = None
+
+    group_id = args.group
+    if args.dry:
+        group_id = domain_intel.utils.id_generator()
+
+    kwargs = {'dry': args.dry}
+
+    awis = domain_intel.awis.actions.SitesLinkingIn()
+    if args.add:
+        kwargs['file_h'] = args.add
+        kwargs['max_add_count'] = count
+        kwargs['topic'] = 'sli-domains'
+        awis.add_domains(**kwargs)
+    elif args.slurp:
+        kwargs['group_id'] = group_id
+        if args.slurp == 'all':
+            kwargs['max_read_count'] = count
+            awis.slurp_sites(**kwargs)
+        else:
+            kwargs['max_slurps'] = count
+            kwargs['domain'] = args.slurp
+            kwargs['as_json'] = True
+            results = awis.slurp_sites_linking_in(**kwargs)
+            print(results)
+    elif args.persist:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.persist(**kwargs)
+
+
+def traffic(args):
+    """'traffic' sub-command entry point.
+
+    """
+    count = args.count
+    if args.count == -1:
+        count = None
+
+    group_id = args.group
+    if args.dry:
+        group_id = domain_intel.utils.id_generator()
+
+    kwargs = {'dry': args.dry}
+
+    awis = domain_intel.awis.actions.TrafficHistory()
+    if args.add:
+        kwargs['file_h'] = args.add
+        kwargs['max_add_count'] = count
+        kwargs['topic'] = 'traffic-domains'
+        awis.add_domains(**kwargs)
+    elif args.slurp:
+        kwargs['group_id'] = group_id
+        kwargs['max_read_count'] = count
+        awis.slurp_traffic(**kwargs)
+    elif args.reload:
+        kwargs['max_read_count'] = count
+        kwargs['file_h'] = args.reload
+        kwargs['topic'] = 'alexa-traffic-results'
+        kwargs['end_token'] = 'TrafficHistoryResponse'
+        awis.parse_raw_alexa(**kwargs)
+    elif args.flatten:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.flatten(**kwargs)
+    elif args.persist:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        awis.persist(**kwargs)
+
+
+def analyst(args):
+    """'analyst' sub-command entry point.
+
+    """
+    count = args.count
+    if args.count == -1:
+        count = None
+
+    group_id = args.group
+    if args.dry:
+        group_id = domain_intel.utils.id_generator()
+
+    kwargs = {'dry': args.dry}
+
+    qas = domain_intel.analyst.Qas()
+    if args.add:
+        filename = args.add.name
+        args.add.close()
+        kwargs['filename'] = filename
+        kwargs['max_add_count'] = count
+        kwargs['topic'] = 'analyst-qas'
+        qas.add_qas(**kwargs)
+    elif args.persist:
+        kwargs['max_read_count'] = count
+        kwargs['group_id'] = group_id
+        qas.persist(**kwargs)
+
+
+def google_big_query(args):
+    """'gbq' sub-command entry point.
+
+    """
+    kwargs = {
+        'write_disposition': 'WRITE_APPEND'
+    }
+    if args.reset:
+        kwargs['write_disposition'] = 'WRITE_TRUNCATE'
+
+    biq_query = gbq.Gbq(dataset=args.dataset)
+    biq_query.load_csv_from_file(target_table=args.table,
+                                 source_csv_name=args.filename,
+                                 **kwargs)
+
+
+if __name__ == '__main__':
+    main()
